@@ -8,6 +8,7 @@ import time
 #SOLVER = 'Backtracking'
 #SOLVER = "Manual"
 SOLVER = "HillClimbing"
+#SOLVER = 'BeamSearch'
 
 
 n = 4
@@ -26,12 +27,13 @@ White = gr.color_rgb(255,255,255)
 
 queens = None
 Win = None
+mq = 0
 
 def main():
 
     # n-Queens solver
 
-    global queens, Win
+    global queens, Win, mq
     Win = gr.GraphWin(f'{n} by {n} board', unit*n+2*xmargin, unit*n+2*ymargin)
 
     for i in range(n):  #ups
@@ -86,68 +88,87 @@ def main():
         exit()
 
     while SOLVER == 'HillClimbing':
-        start = [0]*n
-        for c in range(n):
-            r = random.randint(0,n-1)
-            start[c] = r
-            moveQueen(c, r)
+        start,bestConf = rand_init(0,n)
 
+        for c,r in enumerate(start):
+            moveQueen(c, r)
         time.sleep(10)
+
         mq = QueenMoves
-        bestConf = cca(start)
         while True:
             if bestConf == 0:
-                print(f'Success! hillclimbing moves: {QueenMoves-mq}')
+                print(f'Success! hillclimbing steps: {QueenMoves-mq}')
                 print(f'final pattern {start}')
                 break
 
-            bestMove = None
-            # consider all n**2-1 moves, and find best
-            for i in range(n):
-                for j in range(n):
-                    if start[i] == j: continue
-                    test = list(start)  # copy start list
-                    test[i] = j
-                    tcon = cca(test)
-                    if tcon < bestConf:
-                        bestMove = (i,j)
-                        bestConf = tcon
-            # if we have a good move, take it
-            if bestMove is not None:
-                start[bestMove[0]] = bestMove[1]
-                moveQueen(bestMove[0],bestMove[1])
-                print(f'Making move in column {bestMove[0]} to {bestMove[1]}')
-                print(f'Conflicts now {bestConf}')
-                time.sleep(1)
-            else:
-                print(f'Failed to find a better move, situation {start}')
-                print(f'Total of {QueenMoves - mq} moves, conflicts: {cca(start)}')
-                c = random.randint(0,n-1)
-                r = random.randint(0,n-1)
-                print (f'Making random move in col {c} to {r}')
-                start[c] = r
-                bestConf = cca(start)
-                print(f'conflicts now {bestConf}')
-                moveQueen(c,r)
-                time.sleep(1)
+            # take a step, either the best one, or a random one.
+            start, bestConf = step(start, bestConf, True)
+       
 
-        time.sleep(20)
-        Win.close()
-        exit()
 
-                      
+    time.sleep(20)
+    Win.close()
+    exit()
+
+    while SOLVER=='BeamSearch':              
+        pass
+        
 
 
 
 
-                    
 
+def rand_init(z,n):
+    # return a random configuration of queens, and the total conflicts
+    retval = [z]*n
+    for c in range(n):
+        r = random.randint(0,n-1)
+        retval[c] = r
+    return retval, cca(retval)
 
+def step(start, bestConf, display):
+    """
+    make a single step in the iteration,
+    either a step towards the goal, or a random step if no good step
+    available.
+    if display is set, display the new position.
+    return the new position of all the queens and the current # of conflicts
+    """
 
-            
+    global mq
 
-
-
+    bestMove = None
+    # consider all n**2-1 moves, and find best
+    for i in range(n):
+        for j in range(n):
+            if start[i] == j: continue
+            test = list(start)  # copy start list
+            test[i] = j
+            tcon = cca(test)
+            if tcon < bestConf:
+                bestMove = (i,j)
+                bestConf = tcon
+    # if we have a good move, take it
+    if bestMove is not None:
+        start[bestMove[0]] = bestMove[1]
+        if display:
+            moveQueen(bestMove[0],bestMove[1])
+            print(f'Making move in column {bestMove[0]} to {bestMove[1]}')
+            print(f'Conflicts now {bestConf}')
+            time.sleep(1)
+    else:
+        print(f'Failed to find a better move, situation {start}')
+        print(f'Total of {QueenMoves - mq} moves, conflicts: {cca(start)}')
+        c = random.randint(0,n-1)
+        r = random.randint(0,n-1)
+        start[c] = r
+        bestConf = cca(start)
+        if display:
+            print (f'Making random move in col {c} to {r}')
+            print(f'conflicts now {bestConf}')
+            moveQueen(c,r)
+            time.sleep(1)
+    return start, bestConf
 
 
 
