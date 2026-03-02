@@ -7,8 +7,8 @@ import time
 
 #SOLVER = 'Backtracking'
 #SOLVER = "Manual"
-SOLVER = "HillClimbing"
-#SOLVER = 'BeamSearch'
+#SOLVER = "HillClimbing"
+SOLVER = 'BeamSearch'
 
 
 n = 4
@@ -104,15 +104,59 @@ def main():
             # take a step, either the best one, or a random one.
             start, bestConf = step(start, bestConf, True)
        
-
-
-    time.sleep(20)
-    Win.close()
-    exit()
+        time.sleep(20) # pause to allow success to be viewed
 
     while SOLVER=='BeamSearch':              
-        pass
+        beamsize = 8
+        beam = []
+        for i in range(beamsize):
+            beam.append(rand_init(0,n))
         
+        count = 0
+        while True:
+
+            flag = None
+            for h in range(3):
+              for i in range(beamsize):
+                count += 1
+                s,c  = step(beam[i][0], beam[i][1], False)
+                if c == 0: 
+                    flag = i
+                    retval = s
+                    break
+                beam[i] = (s,c)
+              if flag is not None:
+                  break
+
+            if flag is not None:
+                break
+            beam.sort(key = lambda x:x[1]) #sort by number of conflicts
+            for b in range(int(beamsize/4)):
+                s,c  = beam[-b]
+                s[random.randint[0,n]] = random.randint[0,n]
+                c = cca(s)
+                beam[b] = (s,c)
+
+        if flag is not None:
+            print('found a solution', retval, 'steps =',count)
+            for c,r  in enumerate(retval):
+                moveQueen(c,r)
+            time.sleep(20)
+            
+            
+            
+            
+            
+
+                
+
+
+       
+        
+
+    # these two seem inaccessible
+    Win.close()
+    exit()
 
 
 
@@ -126,7 +170,7 @@ def rand_init(z,n):
         retval[c] = r
     return retval, cca(retval)
 
-def step(start, bestConf, display):
+def step(start, bestConf, display=True):
     """
     make a single step in the iteration,
     either a step towards the goal, or a random step if no good step
@@ -138,7 +182,7 @@ def step(start, bestConf, display):
     global mq
 
     bestMove = None
-    # consider all n**2-1 moves, and find best
+    # consider all n**2-n moves, and find best
     for i in range(n):
         for j in range(n):
             if start[i] == j: continue
