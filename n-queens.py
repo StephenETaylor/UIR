@@ -240,7 +240,7 @@ sconflicts = None
 tconflicts = None
 F = None
 G = None
-def nstep(beam, conflicts, fixfunc)
+def nstep(beam, conflicts, fixfunc):
     """
     [The code below is strictly illustrative.  It is not debugged.]
     This is an numpy using version of step.
@@ -272,24 +272,24 @@ def nstep(beam, conflicts, fixfunc)
     for i in range(n):
         for k in range(n): # loop through all rows, to discover diffs 
             if k == i: continue
-            F = beam[,i] == beam[,k]
+            F = beam[...,i] == beam[...,k]
             Ibeam[F] += 1
             dif = r-k
-            F = beam[,i]+dif == beam[,k]
+            F = beam[...,i]+dif == beam[...,k]
             Ibeam[F] += 1
-            F = beam[,i]-dif == beam[,k]
+            F = beam[...,i]-dif == beam[...,k]
             Ibeam[F] += 1
         for j in range(n):  #i,j is the proposed change
             unchanged_i = 0
             changedto_j = 0
             for k in range(n): # loop through all rows, to discover diffs 
                 if k == i: continue
-                F = beam[,k] == j
+                F = beam[...,k] == j
                 sconflicts[F] += 1
                 dif = r-k
-                F = beam[,k]+dif == j
+                F = beam[...,k]+dif == j
                 sconflicts[F] += 1
-                F = beam[,k]-dif == j
+                F = beam[...,k]-dif == j
                 sconflicts[F] += 1
                 
             # compute the conflict caused by this beam[i,:] = j change
