@@ -1,18 +1,20 @@
-"""
-a scheme for displaying and fooling with n-queens
+""" a scheme for displaying and fooling with n-queens
 """
 import graphics as gr
+import numpy
 import random
 import time
 
+SOLVER = "Manual"
 #SOLVER = 'Backtracking'
-#SOLVER = "Manual"
 #SOLVER = "HillClimbing"
-SOLVER = 'BeamSearch'
+#SOLVER = 'BeamSearch'
+#SOLVER = 'GeneticProgramming'
 
 
-n = 4
-unit = 200
+
+n = 4   # how big a problem?  how many queens?
+unit = 200  #PIXELS per chessboard square side
 hunit = int(unit/2)
 qunit = int(unit/4)
 xmargin = 20
@@ -106,53 +108,66 @@ def main():
        
         time.sleep(20) # pause to allow success to be viewed
 
-    while SOLVER=='BeamSearch':              
+    while SOLVER=='BeamSearch' or SOLVER == 'GeneticProgramming':              
         beamsize = 8
         beam = []
         for i in range(beamsize):
             beam.append(rand_init(0,n))
         
-        count = 0
-        while True:
+        beam.sort(key = lambda x:x[1]) #sort by number of conflicts
+        count = sticks = 0
 
-            flag = None
-            for h in range(3):
-              for i in range(beamsize):
-                count += 1
-                s,c  = step(beam[i][0], beam[i][1], False)
-                if c == 0: 
+
+
+        flag = None
+
+        while True:               #for h in range(3):
+            if beam[0][1] == 0: #already have a solution?
+                retval = beam[0][0]
+                flag = 0
+                break
+            count += 1
+            for i in range(beamsize):
+                s,c  = step(beam[i][0], beam[i][1], 
+                            display = False, stuckStop = True)
+                if c is None: # this instance stuck
+                    sticks += 1
+                    if SOLVER == 'BeamSearch':
+                        if i != 0: # this was not best so far
+                            s,c = beam[0] # so copy the best 
+                        else: # was best, but stuck. 
+                            # make a random move
+                            s[random.randint(0,n-1)] = random.randint(0,n-1)
+                            c = cca(s)
+                    elif SOLVER == 'GeneticProgramming':
+                        # combine two best attempts:
+                        bk = random.randint(1, n-2)
+                        s = beam[0][0][:bk] + beam[1][0][bk:]
+                        c = cca(s)
+
+                # not stuck.
+                elif c == 0:  #done?
                     flag = i
                     retval = s
                     break
                 beam[i] = (s,c)
-              if flag is not None:
-                  break
-
             if flag is not None:
                 break
             beam.sort(key = lambda x:x[1]) #sort by number of conflicts
-            for b in range(int(beamsize/4)):
-                s,c  = beam[-b]
-                s[random.randint[0,n]] = random.randint[0,n]
-                c = cca(s)
-                beam[b] = (s,c)
+
+            #    change least successful quarter for variant on best
+            #    for b in range(int(beamsize/4)):
+            #        s,c  = beam[b]
+            #        s[random.randint[0,n]] = random.randint[0,n]
+            #        c = cca(s)
+            #        beam[-b] = (s,c)
 
         if flag is not None:
-            print('found a solution', retval, 'steps =',count)
+            print('found a solution', retval, 'steps =',count, 'stuck:', sticks)
             for c,r  in enumerate(retval):
                 moveQueen(c,r)
             time.sleep(20)
             
-            
-            
-            
-            
-
-                
-
-
-       
-        
 
     # these two seem inaccessible
     Win.close()
@@ -170,7 +185,7 @@ def rand_init(z,n):
         retval[c] = r
     return retval, cca(retval)
 
-def step(start, bestConf, display=True):
+def step(start, bestConf, display=True, stuckStop=False):
     """
     make a single step in the iteration,
     either a step towards the goal, or a random step if no good step
@@ -189,7 +204,7 @@ def step(start, bestConf, display=True):
             test = list(start)  # copy start list
             test[i] = j
             tcon = cca(test)
-            if tcon < bestConf:
+            if tcon < bestConf or (tcon == bestConf and random.random()) > 0.5:
                 bestMove = (i,j)
                 bestConf = tcon
     # if we have a good move, take it
@@ -201,6 +216,9 @@ def step(start, bestConf, display=True):
             print(f'Conflicts now {bestConf}')
             time.sleep(1)
     else:
+        if stuckStop:
+            return start, None
+
         print(f'Failed to find a better move, situation {start}')
         print(f'Total of {QueenMoves - mq} moves, conflicts: {cca(start)}')
         c = random.randint(0,n-1)
@@ -213,6 +231,127 @@ def step(start, bestConf, display=True):
             moveQueen(c,r)
             time.sleep(1)
     return start, bestConf
+
+sbeam = None  #some allocate-once storage for nstep
+ibeam = None
+rbeam = None
+rconflicts = None
+sconflicts = None
+tconflicts = None
+F = None
+G = None
+def nstep(beam, conflicts, fixfunc)
+    """
+    [The code below is strictly illustrative.  It is not debugged.]
+    This is an numpy using version of step.
+    beam is an M x n array of queen positions
+    conflicts is a parallel M-long column vector of conflicts for beam positions
+    fixfunc(beam, conflicts, i) is a function which generates new positions
+     for positions which are stuck at a local minimum.  It might be slow,
+     but when n is large it seldom gets called, at least in  n-queens.
+    
+    The caller should set up the beam and conflicts arrays,
+    and after each step check to see if conflicts[0] == 0, that is,
+    we have a solution.
+    """
+    global sbeam, ibeam, cbeam, rbeam, rconflicts, sconflicts, tconflicts, F, G
+    assert(n<255) # otherwise ibeam, sconflicts needs another int type
+    if ibeam is None:
+        ibeam = np.ndarray(beam.shape[0], dtype = np.uint8)
+
+    if sconflicts is None:
+        rconflicts = np.zeros(shape(conflicts), dtype = np.uint8) 
+        sconflicts = np.zeros(shape(conflicts), dtype = np.uint8) 
+        tconflicts = np.zeros(shape(conflicts), dtype = np.uint8) 
+        F = np.zeros(shape(conflicts), dtype = np.int64) # subscripts
+    else: 
+        rconflicts = 0
+        sconflicts = 0
+        tconflicts = 255 # larger than possible conflicts.
+
+    for i in range(n):
+        for k in range(n): # loop through all rows, to discover diffs 
+            if k == i: continue
+            F = beam[,i] == beam[,k]
+            Ibeam[F] += 1
+            dif = r-k
+            F = beam[,i]+dif == beam[,k]
+            Ibeam[F] += 1
+            F = beam[,i]-dif == beam[,k]
+            Ibeam[F] += 1
+        for j in range(n):  #i,j is the proposed change
+            unchanged_i = 0
+            changedto_j = 0
+            for k in range(n): # loop through all rows, to discover diffs 
+                if k == i: continue
+                F = beam[,k] == j
+                sconflicts[F] += 1
+                dif = r-k
+                F = beam[,k]+dif == j
+                sconflicts[F] += 1
+                F = beam[,k]-dif == j
+                sconflicts[F] += 1
+                
+            # compute the conflict caused by this beam[i,:] = j change
+            sconflicts = sconflict - Ibeam + conflicts
+            
+            F = tcontflicts > sconflicts
+            tconflicts[F] = sconflicts[F]
+            cbeam[F] = i
+            rbeam[F] = j
+
+    # compute next step
+    F = conflicts > tconflicts
+    for i in range(n):
+        G = cbeam[F] == i
+        beam[F][G,i] = rbeam[F][G]
+        conflicts[F][G] = tconflicts[F][G]
+    
+    # now check for stuck states
+    F = tconflict == 255
+    for i,f in enumerate(F):
+        fixfunc(beam, conflicts, i)
+             
+    # now sort
+    F = np.argsort(beam)
+    beam = beam[F]
+    conflicts = conflicts[F]
+
+
+def fixfunc(beam, conflicts, i):
+    """
+    the fixfunc, assuming it ever gets written, would fix up a specific 
+    state at index i in the beam, and correspondingly in the conflicts.
+    it doesn't need to use numpy to do that.
+    And since I didn't pass tconflicts, it doesn't have an easy way to figure
+    out for itself which other states might need to be fixed up.
+
+    but when it is called, beam and conflicts are sorted by number of conflicts,
+    so beam[0] has the least conflicts, and that number is in conflicts[0]
+
+    depending on what is desired, fixfunc could implement combining
+    two fairly good search-states [i.e. genetic programming]; it could
+    duplicate a some existing state (but I didn't add the code to nstep
+    which would allow two existing, identical states in the beam to 
+    possibly diverge, so that is a less exciting possibility) or
+    it could just make a random change, either to beam[i] or a copy of 
+    a low-conflict state like beam[0]
+
+    it could conceivably check the beam, to avoid introducing duplicates.
+
+    In any case, it should compute the conflicts for the new state,
+    and store them in conflicts[i].
+
+
+    """
+
+    raise Exception('no code here yet')          
+
+                
+                
+    
+        
+
 
 
 
@@ -237,9 +376,10 @@ def cc(i, start):
     # count conflicts for queen # i in start
     ir = start[i]
     retval = 0
-    for c,r in enumerate(start):
-        if i == c:
-            continue
+    # if we only count conflicts up to i, we get half as many, not 2*all
+    for c,r in enumerate(start[:i]):
+        #if i == c:
+        #    continue
         d = abs(i-c)
         if r == ir: 
             retval += 1
@@ -249,8 +389,6 @@ def cc(i, start):
             retval += 1
     return retval            
 
-    #Win.getMouse()
-    Win.close()
 
 sleepPerChoice = 0.1
 def backtrack(start, activeCol):
